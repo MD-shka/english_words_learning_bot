@@ -1,0 +1,10 @@
+INSERT INTO dictionary (word, translation, grade) VALUES ('outerwear', 'верхняя одежда', 5);
+INSERT INTO dictionary (word, translation, grade) VALUES ('amusement park', 'парк аттракционов', 4);
+INSERT INTO dictionary (word, translation, grade) VALUES ('gum', 'жвачка', 4);
+INSERT INTO dictionary (word, translation, grade) VALUES ('vowel', 'гласные буквы', 4);
+INSERT INTO dictionary (word, translation, grade) VALUES ('scissors', 'ножницы', 4);
+INSERT INTO dictionary (word, translation, grade) VALUES ('diving', 'дайвинг', 3);
+INSERT INTO dictionary (word, translation, grade) VALUES ('duodenum', 'двенадцатиперстная кишка', 5);
+INSERT INTO dictionary (word, translation, grade) VALUES ('rare', 'редкий', 3);
+INSERT INTO dictionary (word, translation, grade) VALUES ('behind', 'за', 2);
+INSERT INTO dictionary (word, translation, grade) VALUES ('eat', 'есть', 2);
