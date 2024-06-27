@@ -20,6 +20,16 @@ bot = Bot(token=API_TOKEN)
 dp = Dispatcher()
 
 
+async def connect_to_db():
+    return await asyncpg.connect(POSTGRES_DB)
+
+
+async def add_user_to_db(telegram_id: int, username: str):
+    conn = await connect_to_db()
+    await conn.execute('INSERT INTO users (telegram_id, username) VALUES ($1, $2)', telegram_id, username)
+    await conn.close()
+
+
 @dp.message(Command("start"))
 async def start_command(message: Message):
     await message.answer("Hello! Bot is working!")

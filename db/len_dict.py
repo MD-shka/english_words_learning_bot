@@ -22,7 +22,7 @@ def count_json_elements_by_grade(filename):
 
 
 # Пример использования
-file_path = 'db/dictionary.json'
+file_path = 'db/dict_copy.json'
 grade_counts = count_json_elements_by_grade(file_path)
 
 # Выводим результаты

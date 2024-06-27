@@ -15,6 +15,12 @@ asyncio = "^3.4.3"
 wordfreq = "^3.1.1"
 setuptools = "^70.1.0"
 python-dotenv = "^1.0.1"
+nltk = "^3.8.1"
+pyenchant = "^3.2.2"
+requests = "^2.32.3"
+deepl = "^1.18.0"
+spacy = "^3.7.5"
+textblob = "^0.18.0.post0"
 
 
 [build-system]
