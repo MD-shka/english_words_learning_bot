@@ -12,7 +12,7 @@ services:
       - ./01_run_generate_data_script.sh:/docker-entrypoint-initdb.d/02_run_generate_data_script.sh
       - ./data.sql:/docker-entrypoint-initdb.d/03_data.sql
       - ./generate_data.py:/docker-entrypoint-initdb.d/04_generate_data.py
-      - ./words.json:/docker-entrypoint-initdb.d/05_words.json
+      - ./dictionary.json:/docker-entrypoint-initdb.d/05_dictionary.json
       - postgres_data:/var/lib/postgresql/data
 
 volumes:

@@ -80,7 +80,7 @@ async def translate_word(word, translator, target_lang='RU'):
 
 async def estimate_word_difficulty(word):
     freq = wordfreq.word_frequency(word, 'en')
-    if freq > 0.0001:
+    if freq > 0.00005:
         return 'Easy'  # Легкий уровень
     elif freq > 0.00001:
         return 'Intermediate'  # Средний уровен
@@ -119,7 +119,7 @@ async def filter_words(input_filename, output_filename, deep_translator):
 
 
 async def main():
-    input_file_path = 'test_raw_words.txt'
+    input_file_path = 'raw_words.txt'
     output_file_path = 'db/dictionary.json'
     deepl_translator = deepl.Translator(DEEPL_API_KEY)
     await filter_words(input_file_path, output_file_path, deepl_translator)
