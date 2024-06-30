@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS users (
     telegram_id BIGINT UNIQUE NOT NULL,
     username VARCHAR(50) NOT NULL,
     reminder_time TIME,
-    last_activity TIMESTAMP
+    last_activity TIMESTAMP,
+    learning_time TIME
 );
 
 CREATE TABLE IF NOT EXISTS dictionary  (
