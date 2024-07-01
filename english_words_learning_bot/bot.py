@@ -175,6 +175,23 @@ async def choose_grade_command(message: Message, state: FSMContext):
     await training.choose_grade_command(message, state, bot)
 
 
+@dp.callback_query(lambda c: c.data.startswith('training_length_'))
+async def process_training_length_choice(callback_query: CallbackQuery, state: FSMContext):
+    training_length = int(callback_query.data.split("_")[2])
+    await state.update_data(training_length=training_length)
+    print(f"User selected a limit of {training_length} words.")
+    await bot.delete_message(
+        callback_query.message.chat.id,
+        callback_query.message.message_id
+    )
+    await choose_grade_command(callback_query.message, state)
+
+
+@dp.message(Command('start_training'))
+async def choose_training_length_command(message: Message, state: FSMContext):
+    await training.choose_training_length(message, state, bot)
+
+
 @dp.callback_query(lambda c: c.data.startswith('grade_'))
 async def process_grade_choice(callback_query: CallbackQuery, state: FSMContext):
     pool = dp.get("pool")
@@ -182,7 +199,7 @@ async def process_grade_choice(callback_query: CallbackQuery, state: FSMContext)
         callback_query.message.chat.id,
         callback_query.message.message_id
     )
-    await training.process_grade_choice(callback_query, pool, bot, state)
+    await training.process_grade_choice(callback_query, pool, bot, state, main_menu)
 
 
 @dp.callback_query(lambda c: c.data.startswith('next_words'))
@@ -195,12 +212,7 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query(lambda c: c.data.startswith('start_training_'))
-async def start_training(callback_query: CallbackQuery, state: FSMContext):
-    # pool = dp.get("pool")
-    await bot.delete_message(
-        callback_query.message.chat.id,
-        callback_query.message.message_id
-    )
+async def start_training(callback_query: CallbackQuery, bot: Bot, state: FSMContext, main_menu):
     await training.start_training(callback_query, bot, state, main_menu)
 
 
@@ -226,7 +238,7 @@ async def handle_all_messages(message: Message, state: FSMContext):
     await update_last_activity(pool, telegram_id)
 
     if message.text == "Учиться":
-        await choose_grade_command(message, state)
+        await choose_training_length_command(message, state)
     elif message.text == "Прогресс":
         await stats_command(message)
 

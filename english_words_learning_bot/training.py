@@ -11,7 +11,7 @@ from aiogram.types import (
 from aiogram.fsm.context import FSMContext
 
 
-async def get_user_words(pool, user_id: int, grade: str, limit: int = 10):
+async def get_user_words(pool, user_id: int, grade: str, limit: int):
     async with pool.acquire() as connection:
         user_words = await connection.fetch(
             """
@@ -43,12 +43,15 @@ async def choose_grade_command(message: Message, state: FSMContext, bot: Bot):
     await message.answer("Выберите уровень сложности", reply_markup=keyboard)
 
 
-async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot, state: FSMContext):
+async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot, state: FSMContext, main_menu):
     grade = callback_query.data.split("_")[1]
     telegram_id = callback_query.from_user.id
     user_id = await get_user_id(pool, telegram_id)
 
-    words = await get_user_words(pool, user_id, grade)
+    state_data = await state.get_data()
+    print(f"Limit before fetching words: {state_data.get('training_length')}")
+    words = await get_user_words(pool, user_id, grade, limit=state_data.get("training_length"))
+    print(f"Received {len(words)} words for training.")
     if not words:
         await bot.send_message(telegram_id, f"Вы выучили все слова на уровне {grade}")
         return
@@ -56,7 +59,22 @@ async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot, st
     await state.update_data(user_id=user_id, grade=grade, words=words, index=0)
     sent_message = await bot.send_message(telegram_id, "Начнем обучение! Запомните слова и их переводы:")
     await state.update_data(last_message_id=sent_message.message_id)
-    await show_words(callback_query, state, bot)
+    await start_training(callback_query, bot, state, main_menu)
+
+
+async def choose_training_length(message: Message, state: FSMContext, bot: Bot):
+    state_data = await state.get_data()
+    if "last_message_id" in state_data:
+        try:
+            await bot.delete_message(message.chat.id, state_data["last_message_id"])
+        except Exception as e:
+            print(f"Failed to delete message: {e}")
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=str(i), callback_data=f"training_length_{i}")] for i in range(10, 51, 5)
+    ])
+    sent_message = await message.answer("Выберите колличество слов тренировки", reply_markup=keyboard)
+    await state.update_data(last_message_id=sent_message.message_id)
 
 
 async def show_words(callback_query: CallbackQuery, state: FSMContext, bot: Bot):
@@ -101,9 +119,6 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext, bot: Bot)
 
 
 async def start_training(callback_query: CallbackQuery, bot: Bot, state: FSMContext, main_menu):
-
-    # grade = callback_query.data.split("_")[2]
-
     data = await state.get_data()
     if "last_message_id" in data:
         try:
