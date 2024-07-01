@@ -1,4 +1,5 @@
 import random
+from colorama import Fore, Style
 from datetime import datetime
 from aiogram import Bot
 from aiogram.types import (
@@ -153,9 +154,12 @@ async def finish_training(callback_query: CallbackQuery, state: FSMContext, bot:
 
     correct_answers = state_data.get("correct_answers", 0)
     incorrect_answers = state_data.get("incorrect_answers", 0)
-    start_time = state_data["start_time"]
-    elapsed = datetime.utcnow() - start_time
-    elapsed_str = str(elapsed).split('.')[0]
+    try:
+         start_time = state_data["start_time"]
+         elapsed = datetime.utcnow() - start_time
+         elapsed_str = str(elapsed).split('.')[0]
+    except KeyError:
+        elapsed_str = "0:00:00"
 
     response = (f"Тренировка завершена!\n"
                 f"Правильных ответов: {correct_answers}\n"
@@ -198,7 +202,7 @@ async def show_training_word(callback_query: CallbackQuery, state: FSMContext, b
         [InlineKeyboardButton(text="Завершить тренировку", callback_data="finish_training")]
     ])
 
-    sent_message = await callback_query.message.answer(f"Переведите слово {word['word']}", reply_markup=keyboard)
+    sent_message = await callback_query.message.answer(f"Переведите слово:\n⚪ *{word['word'].upper()}*", reply_markup=keyboard, parse_mode="Markdown")
     await state.update_data(last_message_id=sent_message.message_id)
 
 
@@ -217,11 +221,11 @@ async def handle_answer(callback_query: CallbackQuery, state: FSMContext, bot: B
 
     if chosen_translation == current_word["translation"]:
         state_data["correct_answers"] = state_data.get("correct_answers", 0) + 1
-        response = "Правильно!"
+        response = f"🟢 {current_word['word'].upper()} \\- {current_word['translation'].upper()}"
     else:
         state_data["incorrect_answers"] = state_data.get("incorrect_answers", 0) + 1
-        response = f"Неправильно! Правильный ответ: {current_word['translation']}"
-    await callback_query.message.answer(response)
+        response = f"🔴 ~{chosen_translation.upper()}~ {current_word['word'].upper()} \\- {current_word['translation'].upper()}"
+    await callback_query.message.answer(f"{response}", parse_mode="MarkdownV2")
 
     state_data["training_index"] += 1
     await state.update_data(
