@@ -230,6 +230,42 @@ async def finish_training(callback_query: CallbackQuery, state: FSMContext):
     await training.finish_training(callback_query, state, bot, main_menu)
 
 
+@dp.callback_query(lambda c: c.data.startswith("report_error_"))
+async def report_error(callback_query: CallbackQuery, state: FSMContext):
+    word_id = int(callback_query.data.split("_")[2])
+    pool = dp.get("pool")
+
+    async with pool.acquire() as connection:
+        word_info = await connection.fetchrow(
+            """
+            SELECT word, translation
+            FROM dictionary
+            WHERE word_id = $1
+            """,
+            word_id
+        )
+
+        admin_message = (
+            f"Получена жалоба на слово:\n"
+            f"ID слова: {word_id}\n"
+            f"Слово: {word_info['word']}\n"
+            f"Перевод: {word_info['translation']}\n"
+        )
+
+    await bot.send_message(ADMIN_ID, admin_message)
+
+    await bot.delete_message(
+        callback_query.message.chat.id,
+        callback_query.message.message_id
+    )
+
+    await bot.send_message(
+        callback_query.from_user.id,
+        "Ваша жалоба была отправлена. Спасибо за вашу помощь!",
+        reply_markup=main_menu
+    )
+
+
 @dp.message()
 async def handle_all_messages(message: Message, state: FSMContext):
     pool = dp.get("pool")

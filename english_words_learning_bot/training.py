@@ -196,7 +196,8 @@ async def show_training_word(callback_query: CallbackQuery, state: FSMContext, b
          options[4:6]],
         [InlineKeyboardButton(text=option, callback_data=f"answer_{word['word_id']}_{option}") for option in
          options[6:8]],
-        [InlineKeyboardButton(text="Завершить тренировку", callback_data="finish_training")]
+        [InlineKeyboardButton(text="Завершить тренировку", callback_data="finish_training")],
+        [InlineKeyboardButton(text="Сообщить об ошибке", callback_data=f"report_error_{word['word_id']}")]
     ])
 
     sent_message = await callback_query.message.answer(
