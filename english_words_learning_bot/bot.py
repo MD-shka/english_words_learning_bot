@@ -69,6 +69,26 @@ async def update_last_activity(pool, telegram_id: int):
         )
 
 
+async def check_inactivity(pool):
+    while True:
+        inactive_threshold = datetime.utcnow() - timedelta(hours=24)
+        async with pool.acquire() as connection:
+            users = await connection.fetch(
+                """
+                SELECT telegram_id
+                FROM users
+                WHERE last_activity < $1
+                """,
+                inactive_threshold
+            )
+            for user in users:
+                await bot.send_message(
+                    user['telegram_id'],
+                    f'Вас не было более 24 часов. Пора продолжить обучение!'
+                )
+            await asyncio.sleep(900)  # 15 minutes
+
+
 # Дубль в двух модулях БОТ и ТРЕНИНГ необходимо вынести отдельно как и другие запросы
 async def get_user_id(pool, telegram_id: int):
     async with pool.acquire() as connection:
@@ -152,29 +172,50 @@ async def stats_command(message: Message):
 
 @dp.message(Command('learn'))
 async def choose_grade_command(message: Message, state: FSMContext):
-    await training.choose_grade_command(message, state)
+    await training.choose_grade_command(message, state, bot)
 
 
 @dp.callback_query(lambda c: c.data.startswith('grade_'))
 async def process_grade_choice(callback_query: CallbackQuery, state: FSMContext):
     pool = dp.get("pool")
+    await bot.delete_message(
+        callback_query.message.chat.id,
+        callback_query.message.message_id
+    )
     await training.process_grade_choice(callback_query, pool, bot, state)
 
 
 @dp.callback_query(lambda c: c.data.startswith('next_words'))
 async def next_words(callback_query: CallbackQuery, state: FSMContext):
+    await bot.delete_message(
+        callback_query.message.chat.id,
+        callback_query.message.message_id
+    )
     await training.next_words(callback_query, state, bot)
 
 
 @dp.callback_query(lambda c: c.data.startswith('start_training_'))
 async def start_training(callback_query: CallbackQuery, state: FSMContext):
-    pool = dp.get("pool")
-    await training.start_training(callback_query, pool, bot, state)
+    # pool = dp.get("pool")
+    await bot.delete_message(
+        callback_query.message.chat.id,
+        callback_query.message.message_id
+    )
+    await training.start_training(callback_query, bot, state, main_menu)
 
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
 async def handle_answer(callback_query: CallbackQuery, state: FSMContext):
-    await training.handle_answer(callback_query, state, bot)
+    await bot.delete_message(
+        callback_query.message.chat.id,
+        callback_query.message.message_id
+    )
+    await training.handle_answer(callback_query, state, bot, main_menu)
+
+
+@dp.callback_query(lambda c: c.data.startswith("finish_training"))
+async def finish_training(callback_query: CallbackQuery, state: FSMContext):
+    await training.finish_training(callback_query, state, bot, main_menu)
 
 
 @dp.message()
@@ -190,26 +231,6 @@ async def handle_all_messages(message: Message, state: FSMContext):
         await stats_command(message)
 
 
-async def check_inactivity(pool):
-    while True:
-        inactive_threshold = datetime.utcnow() - timedelta(hours=24)
-        async with pool.acquire() as connection:
-            users = await connection.fetch(
-                """
-                SELECT telegram_id
-                FROM users
-                WHERE last_activity < $1
-                """,
-                inactive_threshold
-            )
-            for user in users:
-                await bot.send_message(
-                    user['telegram_id'],
-                    f'Вас не было более 24 часов. Пора продолжить обучение!'
-                )
-            await asyncio.sleep(900)  # 15 minutes
-
-
 async def main():
     if os.path.exists(LOCK_FILE):
         print("Another instance of the bot is already running.")
@@ -220,7 +241,7 @@ async def main():
 
     pool = await create_pool()
     dp["pool"] = pool
-    asyncio.create_task(check_inactivity(pool))
+    _ = asyncio.create_task(check_inactivity(pool))
 
     def cleanup():
         print("Cleaning up...")
