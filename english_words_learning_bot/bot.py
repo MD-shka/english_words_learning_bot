@@ -199,7 +199,7 @@ async def process_grade_choice(callback_query: CallbackQuery, state: FSMContext)
         callback_query.message.chat.id,
         callback_query.message.message_id
     )
-    await training.process_grade_choice(callback_query, pool, bot, state, main_menu)
+    await training.process_grade_choice(callback_query, pool, bot, state)
 
 
 @dp.callback_query(lambda c: c.data.startswith('next_words'))
@@ -212,7 +212,7 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query(lambda c: c.data.startswith('start_training_'))
-async def start_training(callback_query: CallbackQuery, bot: Bot, state: FSMContext, main_menu):
+async def start_training(callback_query: CallbackQuery, bot: Bot, state: FSMContext):
     await training.start_training(callback_query, bot, state, main_menu)
 
 

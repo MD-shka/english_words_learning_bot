@@ -1,5 +1,4 @@
 import random
-from colorama import Fore, Style
 from datetime import datetime
 from aiogram import Bot
 from aiogram.types import (
@@ -44,15 +43,13 @@ async def choose_grade_command(message: Message, state: FSMContext, bot: Bot):
     await message.answer("Выберите уровень сложности", reply_markup=keyboard)
 
 
-async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot, state: FSMContext, main_menu):
+async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot, state: FSMContext):
     grade = callback_query.data.split("_")[1]
     telegram_id = callback_query.from_user.id
     user_id = await get_user_id(pool, telegram_id)
 
     state_data = await state.get_data()
-    print(f"Limit before fetching words: {state_data.get('training_length')}")
     words = await get_user_words(pool, user_id, grade, limit=state_data.get("training_length"))
-    print(f"Received {len(words)} words for training.")
     if not words:
         await bot.send_message(telegram_id, f"Вы выучили все слова на уровне {grade}")
         return
@@ -60,7 +57,7 @@ async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot, st
     await state.update_data(user_id=user_id, grade=grade, words=words, index=0)
     sent_message = await bot.send_message(telegram_id, "Начнем обучение! Запомните слова и их переводы:")
     await state.update_data(last_message_id=sent_message.message_id)
-    await start_training(callback_query, bot, state, main_menu)
+    await show_words(callback_query, state, bot)
 
 
 async def choose_training_length(message: Message, state: FSMContext, bot: Bot):
@@ -155,9 +152,9 @@ async def finish_training(callback_query: CallbackQuery, state: FSMContext, bot:
     correct_answers = state_data.get("correct_answers", 0)
     incorrect_answers = state_data.get("incorrect_answers", 0)
     try:
-         start_time = state_data["start_time"]
-         elapsed = datetime.utcnow() - start_time
-         elapsed_str = str(elapsed).split('.')[0]
+        start_time = state_data["start_time"]
+        elapsed = datetime.utcnow() - start_time
+        elapsed_str = str(elapsed).split('.')[0]
     except KeyError:
         elapsed_str = "0:00:00"
 
@@ -202,7 +199,11 @@ async def show_training_word(callback_query: CallbackQuery, state: FSMContext, b
         [InlineKeyboardButton(text="Завершить тренировку", callback_data="finish_training")]
     ])
 
-    sent_message = await callback_query.message.answer(f"Переведите слово:\n⚪ *{word['word'].upper()}*", reply_markup=keyboard, parse_mode="Markdown")
+    sent_message = await callback_query.message.answer(
+        f"Переведите слово:\n⚪ *{word['word'].upper()}*",
+        reply_markup=keyboard,
+        parse_mode="Markdown"
+    )
     await state.update_data(last_message_id=sent_message.message_id)
 
 
@@ -224,7 +225,8 @@ async def handle_answer(callback_query: CallbackQuery, state: FSMContext, bot: B
         response = f"🟢 {current_word['word'].upper()} \\- {current_word['translation'].upper()}"
     else:
         state_data["incorrect_answers"] = state_data.get("incorrect_answers", 0) + 1
-        response = f"🔴 ~{chosen_translation.upper()}~ {current_word['word'].upper()} \\- {current_word['translation'].upper()}"
+        response = (f"🔴 ~{chosen_translation.upper()}~ "
+                    f"{current_word['word'].upper()} \\- {current_word['translation'].upper()}")
     await callback_query.message.answer(f"{response}", parse_mode="MarkdownV2")
 
     state_data["training_index"] += 1
