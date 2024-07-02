@@ -21,6 +21,7 @@ requests = "^2.32.3"
 deepl = "^1.18.0"
 spacy = "^3.7.5"
 textblob = "^0.18.0.post0"
+colorama = "^0.4.6"
 
 
 [build-system]

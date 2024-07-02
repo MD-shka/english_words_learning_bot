@@ -13,12 +13,9 @@ from nltk.corpus import (
 )
 from dotenv import load_dotenv
 
-
 load_dotenv()
 
-
 DEEPL_API_KEY = os.getenv('DEEPL_API_KEY')
-
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,10 +31,14 @@ nltk.download([
 ])
 
 prepositions = {
-    'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around', 'at', 'before', 'behind', 'below',
-    'beneath', 'beside', 'between', 'beyond', 'but', 'by', 'concerning', 'despite', 'down', 'during', 'except', 'for',
-    'from', 'in', 'inside', 'into', 'like', 'near', 'of', 'off', 'on', 'onto', 'out', 'outside', 'over', 'past',
-    'regarding', 'since', 'through', 'to', 'toward', 'under', 'underneath', 'until', 'up', 'upon', 'with', 'within',
+    'about', 'above', 'across', 'after', 'against', 'along', 'among', 'around',
+    'at', 'before', 'behind', 'below',
+    'beneath', 'beside', 'between', 'beyond', 'but', 'by', 'concerning',
+    'despite', 'down', 'during', 'except', 'for',
+    'from', 'in', 'inside', 'into', 'like', 'near', 'of', 'off', 'on', 'onto',
+    'out', 'outside', 'over', 'past',
+    'regarding', 'since', 'through', 'to', 'toward', 'under', 'underneath',
+    'until', 'up', 'upon', 'with', 'within',
     'without'
 }
 
@@ -97,7 +98,8 @@ async def filter_words(input_filename, output_filename, deep_translator):
         valid_words = []
         for i, word in enumerate(words_list):
             if i % 100 == 0:
-                logging.info(f'Processing word {i + 1}/{len(words_list)}: {word}')
+                logging.info(
+                    f'Processing word {i + 1}/{len(words_list)}: {word}')
             if not await is_preposition(word) and not await is_stop_word(word):
                 if await is_valid_word(word) and await is_base_form(word):
                     tasks.append(translate_word(word, deep_translator))
@@ -124,6 +126,7 @@ async def main():
     deepl_translator = deepl.Translator(DEEPL_API_KEY)
     await filter_words(input_file_path, output_file_path, deepl_translator)
     logging.info('Finished processing.')
+
 
 if __name__ == '__main__':
     asyncio.run(main())

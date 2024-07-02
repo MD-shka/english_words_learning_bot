@@ -16,7 +16,6 @@ from aiogram.fsm.context import FSMContext
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
 
-
 load_dotenv()
 
 API_TOKEN = os.getenv('API_TOKEN')
@@ -89,7 +88,7 @@ async def check_inactivity(pool):
             await asyncio.sleep(900)  # 15 minutes
 
 
-# Дубль в двух модулях БОТ и ТРЕНИНГ необходимо вынести отдельно как и другие запросы
+# Дубль в двух модулях БОТ и ТРЕНИНГ необходимо вынести отдельно
 async def get_user_id(pool, telegram_id: int):
     async with pool.acquire() as connection:
         user_id = await connection.fetchval(
@@ -158,7 +157,8 @@ async def stats_command(message: Message):
     response = "Ваша статистика:\n\n"
     current_grade = None
     for record in progress:
-        grade, status, count = record['grade'], record['status'], record['count']
+        grade, status, count = record['grade'], record['status'], record[
+            'count']
         if grade != current_grade:
             if current_grade is not None:
                 response += "\n"
@@ -176,7 +176,8 @@ async def choose_grade_command(message: Message, state: FSMContext):
 
 
 @dp.callback_query(lambda c: c.data.startswith('training_length_'))
-async def process_training_length_choice(callback_query: CallbackQuery, state: FSMContext):
+async def process_training_length_choice(callback_query: CallbackQuery,
+                                         state: FSMContext):
     training_length = int(callback_query.data.split("_")[2])
     await state.update_data(training_length=training_length)
     print(f"User selected a limit of {training_length} words.")
@@ -193,7 +194,8 @@ async def choose_training_length_command(message: Message, state: FSMContext):
 
 
 @dp.callback_query(lambda c: c.data.startswith('grade_'))
-async def process_grade_choice(callback_query: CallbackQuery, state: FSMContext):
+async def process_grade_choice(callback_query: CallbackQuery,
+                               state: FSMContext):
     pool = dp.get("pool")
     await bot.delete_message(
         callback_query.message.chat.id,
@@ -212,8 +214,9 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query(lambda c: c.data.startswith('start_training_'))
-async def start_training(callback_query: CallbackQuery, bot: Bot, state: FSMContext):
-    await training.start_training(callback_query, bot, state, main_menu)
+async def start_training(callback_query: CallbackQuery, in_bot: Bot,
+                         state: FSMContext):
+    await training.start_training(callback_query, in_bot, state, main_menu)
 
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
@@ -231,7 +234,7 @@ async def finish_training(callback_query: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query(lambda c: c.data.startswith("report_error_"))
-async def report_error(callback_query: CallbackQuery, state: FSMContext):
+async def report_error(callback_query: CallbackQuery):
     word_id = int(callback_query.data.split("_")[2])
     pool = dp.get("pool")
 
@@ -298,7 +301,8 @@ async def main():
 
     # Обработка сигналов завершения
     for signame in {'SIGINT', 'SIGTERM'}:
-        signal.signal(getattr(signal, signame), lambda signum, frame: asyncio.create_task(cleanup()))
+        signal.signal(getattr(signal, signame),
+                      lambda signum, frame: asyncio.create_task(cleanup()))
 
     try:
         await dp.start_polling(bot)
@@ -306,6 +310,7 @@ async def main():
         await pool.close()
         if os.path.exists(LOCK_FILE):
             os.remove(LOCK_FILE)
+
 
 if __name__ == '__main__':
     asyncio.run(main())
