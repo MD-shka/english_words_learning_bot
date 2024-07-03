@@ -105,16 +105,23 @@ async def show_words(callback_query: CallbackQuery, state: FSMContext,
     words = state_data["words"]
     response = ""
     for word in words[start_index:start_index + 5]:
-        response += f"{word['word']} - {word['translation']}\n"
+        response += (f"🇬🇧 {word['word'].upper()}  "
+                     f"🇷🇺 {word['translation'].upper()}\n")
 
-    keyboard = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Далее", callback_data="next_words")]
-    ])
+    buttons = [[(InlineKeyboardButton(text="Далее",
+                                      callback_data="next_words"))]]
+    if start_index > 0:
+        buttons.append([InlineKeyboardButton(
+            text="Назад",
+            callback_data="back_words")])
+
+    keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
     sent_message = await callback_query.message.answer(response,
                                                        reply_markup=keyboard)
     await state.update_data(last_message_id=sent_message.message_id)
 
 
+# в функции ошибка нажатие кнопки "назад" не работает
 async def next_words(callback_query: CallbackQuery, state: FSMContext,
                      bot: Bot):
     data = await state.get_data()
@@ -124,7 +131,11 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext,
                                      data["last_message_id"])
         except Exception as e:
             print(f"Failed to delete message: {e}")
-    data["index"] += 5
+    if callback_query.data == "back_words":
+        data["index"] = max(0, data["index"] - 5)
+    else:
+        data["index"] += 5
+
     await state.update_data(index=data["index"])
 
     if data["index"] < len(data["words"]):
@@ -135,6 +146,10 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext,
                 [InlineKeyboardButton(
                     text="Начать тренировку",
                     callback_data=f"start_training_{data['grade']}"
+                )],
+                [InlineKeyboardButton(
+                    text="Повторить слова",
+                    callback_data="repeat_words"
                 )]
             ]
         )
@@ -230,26 +245,30 @@ async def show_training_word(callback_query: CallbackQuery, state: FSMContext,
             text=option,
             callback_data=f"answer_{word['word_id']}_{option}"
         )
-         for option in
-         options[:2]],
+            for option in
+            options[:2]],
         [InlineKeyboardButton(
             text=option,
             callback_data=f"answer_{word['word_id']}_{option}"
         )
-         for option in
-         options[2:4]],
+            for option in
+            options[2:4]],
         [InlineKeyboardButton(
             text=option,
             callback_data=f"answer_{word['word_id']}_{option}"
         )
-         for option in
-         options[4:6]],
+            for option in
+            options[4:6]],
         [InlineKeyboardButton(
             text=option,
             callback_data=f"answer_{word['word_id']}_{option}"
         )
-         for option in
-         options[6:8]],
+            for option in
+            options[6:8]],
+        [InlineKeyboardButton(
+            text="Пропустить слово",
+            callback_data=f"answer_{word['word_id']}_unknown"
+        )],
         [InlineKeyboardButton(
             text="Завершить тренировку",
             callback_data="finish_training"
@@ -282,7 +301,12 @@ async def handle_answer(callback_query: CallbackQuery, state: FSMContext,
 
     current_word = state_data["training_words"][training_index]
 
-    if chosen_translation == current_word["translation"]:
+    if chosen_translation == "unknown":
+        response = (f"⚪ Пропушено: {current_word['word'].upper()} \\- "
+                    f"{current_word['translation'].upper()}")
+        state_data["incorrect_answers"] = state_data.get("incorrect_answers",
+                                                         0) + 1
+    elif chosen_translation == current_word["translation"]:
         state_data["correct_answers"] = state_data.get("correct_answers",
                                                        0) + 1
         response = (f"🟢 {current_word['word'].upper()} \\- "

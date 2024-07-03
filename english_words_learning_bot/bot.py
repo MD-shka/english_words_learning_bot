@@ -83,7 +83,8 @@ async def check_inactivity(pool):
             for user in users:
                 await bot.send_message(
                     user['telegram_id'],
-                    f'Вас не было более 24 часов. Пора продолжить обучение!'
+                    f'Вас не было более 24 часов. '
+                    f'Пора продолжить обучение!'
                 )
             await asyncio.sleep(900)  # 15 minutes
 
@@ -180,7 +181,6 @@ async def process_training_length_choice(callback_query: CallbackQuery,
                                          state: FSMContext):
     training_length = int(callback_query.data.split("_")[2])
     await state.update_data(training_length=training_length)
-    print(f"User selected a limit of {training_length} words.")
     await bot.delete_message(
         callback_query.message.chat.id,
         callback_query.message.message_id
@@ -204,7 +204,8 @@ async def process_grade_choice(callback_query: CallbackQuery,
     await training.process_grade_choice(callback_query, pool, bot, state)
 
 
-@dp.callback_query(lambda c: c.data.startswith('next_words'))
+@dp.callback_query(lambda c: c.data.startswith(
+    'next_words') or c.data.startswith('back_words'))
 async def next_words(callback_query: CallbackQuery, state: FSMContext):
     await bot.delete_message(
         callback_query.message.chat.id,
@@ -213,10 +214,20 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext):
     await training.next_words(callback_query, state, bot)
 
 
+@dp.callback_query(lambda c: c.data.startswith('repeat_word'))
+async def repeat_word(callback_query: CallbackQuery, state: FSMContext):
+    await bot.delete_message(
+        callback_query.message.chat.id,
+        callback_query.message.message_id
+    )
+    await state.update_data(index=0)
+    await training.show_words(callback_query, state, bot)
+
+
 @dp.callback_query(lambda c: c.data.startswith('start_training_'))
-async def start_training(callback_query: CallbackQuery, in_bot: Bot,
+async def start_training(callback_query: CallbackQuery, bot: Bot,
                          state: FSMContext):
-    await training.start_training(callback_query, in_bot, state, main_menu)
+    await training.start_training(callback_query, bot, state, main_menu)
 
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
@@ -234,7 +245,7 @@ async def finish_training(callback_query: CallbackQuery, state: FSMContext):
 
 
 @dp.callback_query(lambda c: c.data.startswith("report_error_"))
-async def report_error(callback_query: CallbackQuery):
+async def report_error(callback_query: CallbackQuery, state: FSMContext):
     word_id = int(callback_query.data.split("_")[2])
     pool = dp.get("pool")
 
@@ -256,17 +267,16 @@ async def report_error(callback_query: CallbackQuery):
         )
 
     await bot.send_message(ADMIN_ID, admin_message)
-
     await bot.delete_message(
         callback_query.message.chat.id,
         callback_query.message.message_id
     )
-
     await bot.send_message(
         callback_query.from_user.id,
         "Ваша жалоба была отправлена. Спасибо за вашу помощь!",
         reply_markup=main_menu
     )
+    await training.show_training_word(callback_query, state, bot, main_menu)
 
 
 @dp.message()
@@ -282,6 +292,14 @@ async def handle_all_messages(message: Message, state: FSMContext):
         await stats_command(message)
 
 
+async def cleanup(pool):
+    print("Cleaning up...")
+    await bot.send_message(ADMIN_ID, "Бот был остановлен.")
+    if os.path.exists(LOCK_FILE):
+        os.remove(LOCK_FILE)
+    await pool.close()
+
+
 async def main():
     if os.path.exists(LOCK_FILE):
         print("Another instance of the bot is already running.")
@@ -294,22 +312,15 @@ async def main():
     dp["pool"] = pool
     _ = asyncio.create_task(check_inactivity(pool))
 
-    def cleanup():
-        print("Cleaning up...")
-        os.remove(LOCK_FILE)
-        asyncio.create_task(pool.close())
-
     # Обработка сигналов завершения
+    loop = asyncio.get_event_loop()
     for signame in {'SIGINT', 'SIGTERM'}:
-        signal.signal(getattr(signal, signame),
-                      lambda signum, frame: asyncio.create_task(cleanup()))
-
+        loop.add_signal_handler(getattr(signal, signame),
+                                lambda: asyncio.create_task(cleanup(pool)))
     try:
         await dp.start_polling(bot)
     finally:
-        await pool.close()
-        if os.path.exists(LOCK_FILE):
-            os.remove(LOCK_FILE)
+        await cleanup(pool)
 
 
 if __name__ == '__main__':
