@@ -1,6 +1,6 @@
 import random
 from datetime import datetime
-from aiogram import Bot
+from aiogram import Bot, Dispatcher
 from aiogram.types import (
     Message,
     CallbackQuery,
@@ -9,6 +9,8 @@ from aiogram.types import (
     ReplyKeyboardRemove
 )
 from aiogram.fsm.context import FSMContext
+
+dp = Dispatcher()
 
 
 async def get_user_words(pool, user_id: int, grade: str, limit: int):
@@ -26,6 +28,59 @@ async def get_user_words(pool, user_id: int, grade: str, limit: int):
             user_id, grade, limit
         )
     return user_words
+
+
+async def update_word_status(pool,
+                             user_id: int,
+                             word_id: int,
+                             is_correct: bool
+                             ):
+    async with pool.acquire() as connection:
+        result = await connection.fetchrow(
+            """
+            SELECT status, current_progress
+            FROM user_progress
+            WHERE user_id = $1 AND word_id = $2
+            """,
+            user_id, word_id
+        )
+
+        if result is None:
+            status = "Новое слово"
+            current_progress = 0
+            await connection.execute(
+                """
+                INSERT INTO user_progress (user_id, word_id, status, current_progress)
+                VALUES ($1, $2, $3, $4)
+                ON CONFLICT (user_id, word_id) DO NOTHING 
+                """,
+                user_id, word_id, status, current_progress
+            )
+        else:
+            status, current_progress = result
+
+        if is_correct:
+            current_progress += 1
+            new_status = "В процессе изучения"
+            if current_progress >= 5:
+                new_status = "Выучено"
+            await connection.execute(
+                """
+                UPDATE user_progress
+                SET status = $3, current_progress = $4
+                WHERE user_id = $1 AND word_id = $2
+                """,
+                user_id, word_id, new_status, current_progress
+            )
+        else:
+            await connection.execute(
+                """
+                UPDATE user_progress
+                SET status = $3, current_progress = $4
+                WHERE user_id = $1 AND word_id = $2
+                """,
+                user_id, word_id, "В процессе изучения", 0
+            )
 
 
 async def choose_grade_command(message: Message, state: FSMContext, bot: Bot):
@@ -121,7 +176,6 @@ async def show_words(callback_query: CallbackQuery, state: FSMContext,
     await state.update_data(last_message_id=sent_message.message_id)
 
 
-# в функции ошибка нажатие кнопки "назад" не работает
 async def next_words(callback_query: CallbackQuery, state: FSMContext,
                      bot: Bot):
     data = await state.get_data()
@@ -287,7 +341,7 @@ async def show_training_word(callback_query: CallbackQuery, state: FSMContext,
     await state.update_data(last_message_id=sent_message.message_id)
 
 
-async def handle_answer(callback_query: CallbackQuery, state: FSMContext,
+async def handle_answer(callback_query: CallbackQuery, pool, state: FSMContext,
                         bot: Bot, main_menu):
     data = callback_query.data.split("_")
     chosen_translation = data[2]
@@ -300,6 +354,13 @@ async def handle_answer(callback_query: CallbackQuery, state: FSMContext,
         return
 
     current_word = state_data["training_words"][training_index]
+    is_correct = chosen_translation == current_word["translation"]
+
+    await update_word_status(pool,
+                             state_data["user_id"],
+                             current_word["word_id"],
+                             is_correct
+                             )
 
     if chosen_translation == "unknown":
         response = (f"⚪ Пропушено: {current_word['word'].upper()} \\- "

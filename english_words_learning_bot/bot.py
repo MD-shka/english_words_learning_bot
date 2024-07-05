@@ -147,6 +147,10 @@ async def start_command(message: Message):
     )
 
 
+# ДОбавить общее время тренировок,
+# общее количество слов по грейдам,
+# процент в изучении,
+# общий процент правильных ответов
 @dp.message(Command('stats'))
 async def stats_command(message: Message):
     pool = dp.get("pool")
@@ -232,11 +236,13 @@ async def start_training(callback_query: CallbackQuery, bot: Bot,
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
 async def handle_answer(callback_query: CallbackQuery, state: FSMContext):
+    pool = dp.get("pool")
+
     await bot.delete_message(
         callback_query.message.chat.id,
         callback_query.message.message_id
     )
-    await training.handle_answer(callback_query, state, bot, main_menu)
+    await training.handle_answer(callback_query, pool, state, bot, main_menu)
 
 
 @dp.callback_query(lambda c: c.data.startswith("finish_training"))
