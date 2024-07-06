@@ -82,11 +82,11 @@ async def translate_word(word, translator, target_lang='RU'):
 async def estimate_word_difficulty(word):
     freq = wordfreq.word_frequency(word, 'en')
     if freq > 0.00005:
-        return 'Easy'  # Легкий уровень
+        return 1  # Легкий уровень
     elif freq > 0.00001:
-        return 'Intermediate'  # Средний уровен
+        return 2  # Средний уровен
     else:
-        return 'Advanced'  # Сложный уровень
+        return 3  # Сложный уровень
 
 
 async def filter_words(input_filename, output_filename, deep_translator):

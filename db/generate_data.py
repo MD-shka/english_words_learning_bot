@@ -12,6 +12,9 @@ with open('/docker-entrypoint-initdb.d/data.sql', 'w') as sql_f:
         word = entry["word"]
         translation = entry["translation"]
         grade = entry["grade"]
-        sql_query = (f"INSERT INTO dictionary (word, translation, grade) VALUES "
-                     f"('{word}', '{translation}', '{grade}');\n")
+
+        sql_query = (f"INSERT INTO dictionary (word, translation, grade_id) "
+                     f"SELECT '{word}', '{translation}', grade_id "
+                     f"FROM grades WHERE grade_id = '{grade}';\n")
+
         sql_f.write(sql_query)

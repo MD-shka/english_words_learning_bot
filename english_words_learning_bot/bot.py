@@ -107,24 +107,52 @@ async def get_user_statistics(pool, user_id: int):
     async with pool.acquire() as connection:
         progress = await connection.fetch(
             """
-            SELECT d.grade, up.status, COUNT(*) as count
+            SELECT g.grade, up.status, COUNT(*) as count
             FROM user_progress up
             JOIN dictionary d ON up.word_id = d.word_id
+            JOIN grades g ON d.grade_id = g.grade_id
             WHERE up.user_id = $1
-            GROUP BY d.grade, up.status
-            ORDER BY d.grade, up.status
+            GROUP BY g.grade, up.status
+            ORDER BY g.grade, up.status
             """,
             user_id
         )
-        learning_time = await connection.fetchval(
+        stats = await connection.fetchrow(
             """
-            SELECT learning_time
-            FROM users
+            SELECT total_training_time, correct_answers, incorrect_answers
+            FROM user_statistics
             WHERE user_id = $1
             """,
             user_id
         )
-    return progress, learning_time
+        total_words_by_grade = await connection.fetch(
+            """
+            SELECT g.grade, COUNT(*) as total_words
+            FROM dictionary d
+            JOIN grades g ON d.grade_id = g.grade_id
+            GROUP BY g.grade
+            ORDER BY g.grade
+        """
+        )
+        if stats:
+            learning_time = stats['total_training_time']
+            total_answers = stats['correct_answers'] + stats[
+                'incorrect_answers']
+            correct_percentage = (stats[
+                                      'correct_answers'
+                                  ] / total_answers
+                                  * 100) if total_answers > 0 else 0
+        else:
+            learning_time = None
+            total_answers = 0
+            correct_percentage = 0
+        return (
+            progress,
+            learning_time,
+            total_answers,
+            correct_percentage,
+            total_words_by_grade
+        )
 
 
 buttons = [
@@ -147,31 +175,37 @@ async def start_command(message: Message):
     )
 
 
-# ДОбавить общее время тренировок,
-# общее количество слов по грейдам,
-# процент в изучении,
-# общий процент правильных ответов
 @dp.message(Command('stats'))
 async def stats_command(message: Message):
     pool = dp.get("pool")
     telegram_id = message.from_user.id
 
     user_id = await get_user_id(pool, telegram_id)
-    progress, learning_time = await get_user_statistics(pool, user_id)
+    (
+        progress,
+        learning_time,
+        total_answers,
+        correct_percentage,
+        total_words_by_grade
+     ) = await get_user_statistics(pool, user_id)
+
+    total_words_dict = {record['grade']: record['total_words'] for record in
+                        total_words_by_grade}
 
     response = "Ваша статистика:\n\n"
-    current_grade = None
     for record in progress:
-        grade, status, count = record['grade'], record['status'], record[
-            'count']
-        if grade != current_grade:
-            if current_grade is not None:
-                response += "\n"
-            current_grade = grade
-            response += f"Грейд: {grade}\n"
-        response += f"{status.capitalize()}: {count}\n"
+        grade, status, count = (
+            record['grade'], record['status'], record['count']
+        )
+        total_words = total_words_dict.get(grade, 0)
+        response += f"Грейд {grade}:\n"
+        response += (f"  {status.capitalize()}: {count} из "
+                     f"{total_words} слов\n\n")
 
-    response += f"\nОбщее время обучения: {learning_time}"
+    response += (f"Общее время обучения: "
+                 f"{learning_time}").rsplit('.', 1)[0]
+    response += f"\nОбщее количество ответов: {total_answers}\n"
+    response += f"Процент правильных ответов: {correct_percentage:.2f}%"
     await message.answer(response, reply_markup=main_menu)
 
 
@@ -231,7 +265,8 @@ async def repeat_word(callback_query: CallbackQuery, state: FSMContext):
 @dp.callback_query(lambda c: c.data.startswith('start_training_'))
 async def start_training(callback_query: CallbackQuery, bot: Bot,
                          state: FSMContext):
-    await training.start_training(callback_query, bot, state, main_menu)
+    pool = dp.get("pool")
+    await training.start_training(callback_query, pool, bot, state, main_menu)
 
 
 @dp.callback_query(lambda c: c.data.startswith("answer_"))
@@ -247,7 +282,8 @@ async def handle_answer(callback_query: CallbackQuery, state: FSMContext):
 
 @dp.callback_query(lambda c: c.data.startswith("finish_training"))
 async def finish_training(callback_query: CallbackQuery, state: FSMContext):
-    await training.finish_training(callback_query, state, bot, main_menu)
+    pool = dp.get("pool")
+    await training.finish_training(callback_query, state, pool, bot, main_menu)
 
 
 @dp.callback_query(lambda c: c.data.startswith("report_error_"))
@@ -282,7 +318,8 @@ async def report_error(callback_query: CallbackQuery, state: FSMContext):
         "Ваша жалоба была отправлена. Спасибо за вашу помощь!",
         reply_markup=main_menu
     )
-    await training.show_training_word(callback_query, state, bot, main_menu)
+    await training.show_training_word(callback_query, state, pool,
+                                      bot, main_menu)
 
 
 @dp.message()

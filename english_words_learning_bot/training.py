@@ -1,5 +1,5 @@
 import random
-from datetime import datetime
+from datetime import datetime, timedelta
 from aiogram import Bot, Dispatcher
 from aiogram.types import (
     Message,
@@ -21,7 +21,8 @@ async def get_user_words(pool, user_id: int, grade: str, limit: int):
             FROM dictionary d
             LEFT JOIN user_progress up 
             ON d.word_id = up.word_id AND up.user_id = $1
-            WHERE d.grade = $2
+            JOIN grades g ON d.grade_id = g.grade_id
+            WHERE g.grade = $2
             ORDER BY RANDOM()
             LIMIT $3
             """,
@@ -50,7 +51,12 @@ async def update_word_status(pool,
             current_progress = 0
             await connection.execute(
                 """
-                INSERT INTO user_progress (user_id, word_id, status, current_progress)
+                INSERT INTO user_progress (
+                user_id,
+                word_id,
+                status,
+                current_progress
+                )
                 VALUES ($1, $2, $3, $4)
                 ON CONFLICT (user_id, word_id) DO NOTHING 
                 """,
@@ -83,6 +89,45 @@ async def update_word_status(pool,
             )
 
 
+async def update_user_statistic(
+        pool,
+        user_id: int,
+        grade_id: int,
+        training_time: timedelta,
+        correct_answers: int,
+        incorrect_answers: int
+):
+    async with pool.acquire() as connection:
+        stat = await connection.fetchrow(
+            """
+            SELECT * FROM user_statistics WHERE user_id = $1 AND grade_id = $2
+            """,
+            user_id, grade_id
+        )
+        if stat:
+            await connection.execute(
+                """
+                UPDATE user_statistics
+                SET total_training_time = total_training_time + $3,
+                correct_answers = correct_answers + $4,
+                incorrect_answers = incorrect_answers + $5
+                WHERE user_id = $1 AND grade_id = $2
+                """,
+                user_id, grade_id, training_time, correct_answers,
+                incorrect_answers
+            )
+        else:
+            await connection.execute(
+                """
+                INSERT INTO user_statistics (user_id, grade_id,
+                 total_training_time, correct_answers, incorrect_answers)
+                VALUES ($1, $2, $3, $4, $5)
+                """,
+                user_id, grade_id, training_time, correct_answers,
+                incorrect_answers
+            )
+
+
 async def choose_grade_command(message: Message, state: FSMContext, bot: Bot):
     state_data = await state.get_data()
     if "last_message_id" in state_data:
@@ -105,19 +150,35 @@ async def choose_grade_command(message: Message, state: FSMContext, bot: Bot):
 
 async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot,
                                state: FSMContext):
-    grade = callback_query.data.split("_")[1]
+    grade_name = callback_query.data.split("_")[1]
     telegram_id = callback_query.from_user.id
     user_id = await get_user_id(pool, telegram_id)
 
+    async with pool.acquire() as connection:
+        grade_id = await connection.fetchval(
+            """
+            SELECT grade_id FROM grades WHERE grade = $1
+            """,
+            grade_name
+        )
+
+# Возможно удалить бесполеная проверка
+    if grade_id is None:
+        await bot.send_message(
+            telegram_id,
+            "Ошибка: Невозможно найти выбранный уровень сложности.")
+        return
+
     state_data = await state.get_data()
-    words = await get_user_words(pool, user_id, grade,
+    words = await get_user_words(pool, user_id, grade_name,
                                  limit=state_data.get("training_length"))
     if not words:
         await bot.send_message(telegram_id,
-                               f"Вы выучили все слова на уровне {grade}")
+                               f"Вы выучили все слова на уровне {grade_name}")
         return
 
-    await state.update_data(user_id=user_id, grade=grade, words=words, index=0)
+    await state.update_data(user_id=user_id, grade=grade_name,
+                            grade_id=grade_id, words=words, index=0)
     sent_message = await bot.send_message(telegram_id,
                                           "Начнем обучение! "
                                           "Запомните слова и их переводы:")
@@ -213,7 +274,7 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext,
         await state.update_data(last_message_id=sent_message.message_id)
 
 
-async def start_training(callback_query: CallbackQuery, bot: Bot,
+async def start_training(callback_query: CallbackQuery, pool, bot: Bot,
                          state: FSMContext, main_menu):
     data = await state.get_data()
     if "last_message_id" in data:
@@ -238,11 +299,11 @@ async def start_training(callback_query: CallbackQuery, bot: Bot,
     await bot.send_message(callback_query.from_user.id,
                            "Начнем тренировку!",
                            reply_markup=hide_keyboard)
-    await show_training_word(callback_query, state, bot, main_menu)
+    await show_training_word(callback_query, state, pool, bot, main_menu)
 
 
 async def finish_training(callback_query: CallbackQuery, state: FSMContext,
-                          bot: Bot, main_menu):
+                          pool, bot: Bot, main_menu):
     state_data = await state.get_data()
     last_message_id = state_data.get("last_message_id")
     if last_message_id:
@@ -254,17 +315,31 @@ async def finish_training(callback_query: CallbackQuery, state: FSMContext,
 
     correct_answers = state_data.get("correct_answers", 0)
     incorrect_answers = state_data.get("incorrect_answers", 0)
-    try:
-        start_time = state_data["start_time"]
-        elapsed = datetime.utcnow() - start_time
-        elapsed_str = str(elapsed).split('.')[0]
-    except KeyError:
-        elapsed_str = "0:00:00"
+    elapsed = timedelta(0)
+
+    if "start_time" in state_data:
+        state_time = state_data["start_time"]
+        elapsed = datetime.utcnow() - state_time
+
+    elapsed_str = str(elapsed).split('.')[0]
 
     response = (f"Тренировка завершена!\n"
                 f"Правильных ответов: {correct_answers}\n"
                 f"Ошибок: {incorrect_answers}\n"
                 f"Время тренировки: {elapsed_str}")
+
+    grade_id = state_data.get("grade_id")
+    user_id = state_data.get("user_id")
+    training_time = elapsed
+
+    await update_user_statistic(
+        pool,
+        user_id,
+        grade_id,
+        training_time,
+        correct_answers,
+        incorrect_answers
+    )
 
     await bot.send_message(callback_query.from_user.id, response,
                            reply_markup=main_menu)
@@ -272,7 +347,7 @@ async def finish_training(callback_query: CallbackQuery, state: FSMContext,
 
 
 async def show_training_word(callback_query: CallbackQuery, state: FSMContext,
-                             bot: Bot, main_menu):
+                             pool, bot: Bot, main_menu):
     data = await state.get_data()
     if "last_message_id" in data:
         try:
@@ -283,7 +358,8 @@ async def show_training_word(callback_query: CallbackQuery, state: FSMContext,
     index = data["training_index"]
 
     if index >= len(data["training_words"]):
-        await finish_training(callback_query, state, bot, main_menu)
+        await finish_training(callback_query, state, pool,
+                              bot, main_menu)
         return
 
     word = data["training_words"][index]
@@ -350,7 +426,8 @@ async def handle_answer(callback_query: CallbackQuery, pool, state: FSMContext,
     training_index = state_data["training_index"]
 
     if training_index >= len(state_data["training_words"]):
-        await finish_training(callback_query, state, bot, main_menu)
+        await finish_training(callback_query, state, pool,
+                              bot, main_menu)
         return
 
     current_word = state_data["training_words"][training_index]
@@ -388,7 +465,7 @@ async def handle_answer(callback_query: CallbackQuery, pool, state: FSMContext,
         incorrect_answers=state_data["incorrect_answers"]
     )
 
-    await show_training_word(callback_query, state, bot, main_menu)
+    await show_training_word(callback_query, state, pool, bot, main_menu)
 
 
 async def get_user_id(pool, telegram_id: int):
