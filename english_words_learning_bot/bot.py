@@ -119,7 +119,9 @@ async def get_user_statistics(pool, user_id: int):
         )
         stats = await connection.fetchrow(
             """
-            SELECT total_training_time, correct_answers, incorrect_answers
+            SELECT SUM(total_training_time) as total_training_time,
+                   SUM(correct_answers) as correct_answers,
+                   SUM(incorrect_answers) as incorrect_answers
             FROM user_statistics
             WHERE user_id = $1
             """,
