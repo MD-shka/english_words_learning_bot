@@ -32,6 +32,7 @@ async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot,
         )
 
     state_data = await state.get_data()
+
     words = await get_user_words(pool, user_id, grade_name,
                                  limit=state_data.get("training_length"))
     if not words:
@@ -43,19 +44,26 @@ async def process_grade_choice(callback_query: CallbackQuery, pool, bot: Bot,
     await state.update_data(user_id=user_id, grade=grade_name,
                             grade_id=grade_id, words=words, index=0)
 
-    sent_message = await bot.send_message(telegram_id,
-                                          "Начнем обучение! "
-                                          "Запомните слова и их переводы:")
-    await state.update_data(last_message_id=sent_message.message_id)
+    if "last_message_id" in state_data:
+        await delete_last_message(bot, callback_query.message.chat.id,
+                                  state_data["last_message_id"])
+
+    if "last_message_params_id" in state_data:
+        await delete_last_message(bot, callback_query.message.chat.id,
+                                  state_data["last_message_params_id"])
+
+    sent_message_word_translate = await bot.send_message(
+        telegram_id, "Запомните слова и их переводы:")
+    await state.update_data(
+        sent_message_word_translate_id=sent_message_word_translate.message_id,
+        sent_message_word_translate_text=sent_message_word_translate.text
+    )
     await show_words(callback_query, state, bot)
 
 
 async def show_words(callback_query: CallbackQuery, state: FSMContext,
                      bot: Bot):
     state_data = await state.get_data()
-    if "last_message_id" in state_data:
-        await delete_last_message(bot, callback_query.message.chat.id,
-                                  state_data["last_message_id"])
     start_index = state_data["index"]
     words = state_data["words"]
     response = ""
@@ -86,6 +94,12 @@ async def next_words(callback_query: CallbackQuery, state: FSMContext,
     if state_data["index"] < len(state_data["words"]):
         await show_words(callback_query, state, bot)
     else:
+        if "sent_message_word_translate_id" in state_data:
+            await delete_last_message(
+                bot,
+                callback_query.message.chat.id,
+                state_data["sent_message_word_translate_id"]
+            )
         sent_message = await callback_query.message.answer(
             "Все слова были показаны. Готовы начать тренировку?",
             reply_markup=await start_training_keyboard(state_data["grade"]))
@@ -99,6 +113,13 @@ async def start_training(callback_query: CallbackQuery, pool, bot: Bot,
         await delete_last_message(bot, callback_query.message.chat.id,
                                   state_data["last_message_id"])
 
+    if "sent_message_word_translate_id" in state_data:
+        await delete_last_message(
+            bot,
+            callback_query.message.chat.id,
+            state_data["sent_message_word_translate_id"]
+        )
+
     words = state_data["words"]
     random.shuffle(words)
 
@@ -109,8 +130,6 @@ async def start_training(callback_query: CallbackQuery, pool, bot: Bot,
         incorrect_answers=0,
         start_time=datetime.utcnow()
     )
-    await bot.send_message(callback_query.from_user.id,
-                           "Начнем тренировку!")
     await show_training_word(callback_query, state, pool, bot, main_menu)
 
 
@@ -160,6 +179,7 @@ async def show_training_word(callback_query: CallbackQuery, state: FSMContext,
     if "last_message_id" in state_data:
         await delete_last_message(bot, callback_query.message.chat.id,
                                   state_data["last_message_id"])
+
     index = state_data["training_index"]
 
     if index >= len(state_data["training_words"]):

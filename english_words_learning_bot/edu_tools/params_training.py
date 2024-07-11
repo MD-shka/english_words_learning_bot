@@ -29,7 +29,7 @@ async def choose_training_length(message: Message, state: FSMContext,
         await delete_last_message(bot, message.chat.id,
                                   state_data["last_message_id"])
 
-    await bot.send_message(
+    sent_message_params = await bot.send_message(
         chat_id=message.chat.id,
         text="Выберите параметры тренировки:",
         reply_markup=ReplyKeyboardRemove()
@@ -39,4 +39,8 @@ async def choose_training_length(message: Message, state: FSMContext,
         "Колличество слов тренировки",
         reply_markup=choose_training_length_keyboard
     )
-    await state.update_data(last_message_id=sent_message.message_id)
+
+    await state.update_data(
+        last_message_id=sent_message.message_id,
+        last_message_params_id=sent_message_params.message_id
+    )
