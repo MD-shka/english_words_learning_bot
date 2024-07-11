@@ -12,7 +12,7 @@ def register_general_handlers(dp: Dispatcher, bot: Bot):
 
         await update_last_activity(pool, telegram_id)
 
-        if message.text == "Учиться":
+        if message.text == "Учить слова":
             await dp.get("choose_training_length_command")(message, state)
         elif message.text == "Прогресс":
             await dp.get("stats_command")(message)

@@ -1,15 +1,16 @@
 from aiogram import Dispatcher, Bot
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardRemove
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from english_words_learning_bot.keyboards import main_menu
+import english_words_learning_bot.edu_tools.params_training as params_training
 import english_words_learning_bot.training as training
 
 
 def register_learn_handlers(dp: Dispatcher, bot: Bot, config):
     @dp.message(Command('learn'))
     async def choose_grade_command(message: Message, state: FSMContext):
-        await training.choose_grade_command(message, state, bot)
+        await params_training.choose_grade_command(message, state, bot)
 
     @dp.callback_query(lambda c: c.data.startswith('training_length_'))
     async def process_training_length_choice(callback_query: CallbackQuery,
@@ -25,7 +26,7 @@ def register_learn_handlers(dp: Dispatcher, bot: Bot, config):
     @dp.message(Command('start_training'))
     async def choose_training_length_command(message: Message,
                                              state: FSMContext):
-        await training.choose_training_length(message, state, bot)
+        await params_training.choose_training_length(message, state, bot)
 
     @dp.callback_query(lambda c: c.data.startswith('grade_'))
     async def process_grade_choice(callback_query: CallbackQuery,
@@ -110,7 +111,7 @@ def register_learn_handlers(dp: Dispatcher, bot: Bot, config):
         await bot.send_message(callback_query.from_user.id,
                                "Ваша жалоба была отправлена. "
                                "Спасибо за вашу помощь!",
-                               reply_markup=main_menu)
+                               reply_markup=ReplyKeyboardRemove())
         await training.show_training_word(callback_query, state, pool,
                                           bot, main_menu)
 
