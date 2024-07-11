@@ -4,7 +4,7 @@ from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from english_words_learning_bot.keyboards import main_menu
 import english_words_learning_bot.edu_tools.params_training as params_training
-import english_words_learning_bot.training as training
+import english_words_learning_bot.edu_tools.training as training
 
 
 def register_learn_handlers(dp: Dispatcher, bot: Bot, config):

@@ -3,14 +3,14 @@ from datetime import datetime, timedelta
 from aiogram import Bot
 from aiogram.types import CallbackQuery
 from aiogram.fsm.context import FSMContext
-from .database import (
+from english_words_learning_bot.database import (
     get_user_id,
     get_user_words,
     update_word_status,
     update_user_statistic,
 )
-from .edu_tools.utils import delete_last_message
-from .keyboards import (
+from english_words_learning_bot.edu_tools.utils import delete_last_message
+from english_words_learning_bot.keyboards import (
     navigation_keyboard,
     start_training_keyboard,
     show_training_word_keyboard,
