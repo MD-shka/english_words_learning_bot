@@ -2,6 +2,7 @@ import os
 import signal
 import asyncio
 from aiogram import Bot, Dispatcher
+from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from config import load_config
 from database import create_pool
@@ -12,6 +13,8 @@ from utils import cleanup, check_inactivity
 config = load_config()
 bot = Bot(token=config['API_TOKEN'])
 dp = Dispatcher()
+storage = MemoryStorage()
+state = FSMContext(storage=storage, key=config["ADMIN_ID"])
 storage = MemoryStorage()
 
 LOCK_FILE = 'bot.lock'
