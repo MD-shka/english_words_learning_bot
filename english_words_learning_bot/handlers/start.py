@@ -15,7 +15,6 @@ def register_start_handlers(dp: Dispatcher, bot: Bot):
         username = message.from_user.username
 
         state_data = await state.get_data()
-        print(state_data)
         if "last_message_id" in state_data:
             await delete_last_message(bot, message.chat.id,
                                       state_data["last_message_id"])
