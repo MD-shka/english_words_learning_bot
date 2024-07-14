@@ -13,20 +13,19 @@ async def cleanup(pool, bot, admin_id):
 
 async def check_inactivity(pool, bot):
     while True:
-        inactive_threshold = datetime.utcnow() - timedelta(hours=24)
         async with pool.acquire() as connection:
             users = await connection.fetch(
                 """
-                SELECT telegram_id
+                SELECT telegram_id, notification_interval, last_activity
                 FROM users
-                WHERE last_activity < $1
                 """,
-                inactive_threshold
             )
             for user in users:
-                await bot.send_message(
-                    user['telegram_id'],
-                    f'Вас не было более 24 часов. '
-                    f'Пора продолжить обучение!'
-                )
-            await asyncio.sleep(900)  # 15 minutes
+                inactive_threshold = datetime.utcnow() - timedelta(
+                    hours=user['notification_interval'])
+                if user['last_activity'] < inactive_threshold:
+                    await bot.send_message(
+                        user['telegram_id'],
+                        f'Вас давно не было. Пора продолжить обучение!'
+                    )
+            await asyncio.sleep(300)  # 5 minutes

@@ -3,7 +3,8 @@ CREATE TABLE IF NOT EXISTS users (
     telegram_id BIGINT UNIQUE NOT NULL,
     username VARCHAR(50) NOT NULL,
     reminder_time TIME,
-    last_activity TIMESTAMP
+    last_activity TIMESTAMP,
+    notification_interval INTEGER DEFAULT 24
 );
 
 CREATE TABLE IF NOT EXISTS grades (

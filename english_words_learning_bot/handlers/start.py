@@ -21,6 +21,6 @@ def register_start_handlers(dp: Dispatcher, bot: Bot):
 
         await add_user(pool, telegram_id, username)
         await message.answer(
-            f'Удачи в изучении слов!',
+            f'Выберите пункт меню:',
             reply_markup=main_menu
         )

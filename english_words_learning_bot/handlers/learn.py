@@ -5,7 +5,6 @@ from aiogram.fsm.context import FSMContext
 from english_words_learning_bot.keyboards import main_menu
 import english_words_learning_bot.edu_tools.params_training as params_training
 import english_words_learning_bot.edu_tools.training as training
-from english_words_learning_bot.edu_tools.utils import delete_last_message
 
 
 def register_learn_handlers(dp: Dispatcher, bot: Bot, config):

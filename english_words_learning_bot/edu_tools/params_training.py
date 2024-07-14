@@ -16,9 +16,10 @@ async def choose_grade_command(message: Message, state: FSMContext,
         await delete_last_message(bot, message.chat.id,
                                   state_data["last_message_id"])
 
-    await message.answer("Уровень сложности",
-                         reply_markup=choose_grade_keyboard
-                         )
+    sent_message = await message.answer("Уровень сложности",
+                                        reply_markup=choose_grade_keyboard)
+
+    await state.update_data(last_message_id=sent_message.message_id)
 
 
 async def choose_training_length(message: Message, state: FSMContext,
@@ -37,7 +38,7 @@ async def choose_training_length(message: Message, state: FSMContext,
 
     sent_message = await message.answer(
         "Колличество слов тренировки",
-        reply_markup=choose_training_length_keyboard
+        reply_markup=await choose_training_length_keyboard()
     )
 
     await state.update_data(

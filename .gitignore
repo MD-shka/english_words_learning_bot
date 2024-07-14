@@ -1,3 +1,4 @@
 .env
 .venv
+.__pycache__
 english_words_learning_bot/bot.lock

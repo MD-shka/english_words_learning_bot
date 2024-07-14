@@ -32,7 +32,6 @@ async def main():
 
     register_handlers(dp, bot, config)
 
-    # Обработка сигналов завершения
     loop = asyncio.get_event_loop()
     for signame in {'SIGINT', 'SIGTERM'}:
         loop.add_signal_handler(getattr(signal, signame),

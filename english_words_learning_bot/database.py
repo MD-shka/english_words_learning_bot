@@ -217,3 +217,15 @@ async def update_user_statistic(
                 user_id, grade_id, training_time, correct_answers,
                 incorrect_answers
             )
+
+
+async def update_notafication_interval(pool, telegram_id: int, interval: int):
+    async with pool.acquire() as connection:
+        await connection.execute(
+            """
+            UPDATE users
+            SET notification_interval = $1
+            WHERE telegram_id = $2
+            """,
+            interval, telegram_id
+        )
