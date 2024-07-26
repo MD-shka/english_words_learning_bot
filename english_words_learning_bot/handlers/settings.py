@@ -6,12 +6,12 @@ from english_words_learning_bot.keyboards import (
     notification_interval_keyboard,
     main_menu
 )
-from english_words_learning_bot.edu_tools.utils import delete_last_message
 
 
 def register_settings_handlers(dp: Dispatcher, bot: Bot):
     @dp.message(Command('settings'))
     async def settings_command(message: Message):
+
         await message.answer(
             'Через сколько часов вы хотите получать уведомления?',
             reply_markup=await notification_interval_keyboard())
@@ -22,6 +22,7 @@ def register_settings_handlers(dp: Dispatcher, bot: Bot):
         pool = dp.get("pool")
         interval = int(callback_query.data.split('_')[-1])
         user_id = callback_query.from_user.id
+        telegram_id = callback_query.from_user.id
         await update_notafication_interval(pool, user_id, interval)
         await callback_query.message.answer(
             f'Интервал уведомлений обновлен на {interval} часов.',

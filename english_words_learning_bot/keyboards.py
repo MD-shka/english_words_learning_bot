@@ -31,8 +31,10 @@ async def choose_training_length_keyboard():
 
 async def start_training_keyboard(grade):
     return InlineKeyboardMarkup(row_width=2, inline_keyboard=[[
-        InlineKeyboardButton(text="▶️", callback_data=f"start_training_{grade}"),
-        InlineKeyboardButton(text="🔄", callback_data="repeat_words")]])
+        InlineKeyboardButton(text="▶️",
+                             callback_data=f"start_training_{grade}"),
+        InlineKeyboardButton(text="🔄",
+                             callback_data="repeat_words")]])
 
 
 async def navigation_keyboard(start_index):
@@ -93,3 +95,12 @@ async def notification_interval_keyboard():
     ]
     keyboard = [buttons[i:i + 4] for i in range(0, len(buttons), 4)]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
+
+
+async def notation_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text="Начать тренировку",
+                callback_data="start_training_from_notification")],
+        ])

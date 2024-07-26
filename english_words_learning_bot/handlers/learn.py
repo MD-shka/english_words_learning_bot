@@ -15,6 +15,8 @@ def register_learn_handlers(dp: Dispatcher, bot: Bot, config):
     @dp.callback_query(lambda c: c.data.startswith('training_length_'))
     async def process_training_length_choice(callback_query: CallbackQuery,
                                              state: FSMContext):
+        pool = dp.get("pool")
+        telegram_id = callback_query.message.from_user.id
         training_length = int(callback_query.data.split("_")[2])
         await state.update_data(training_length=training_length)
         await bot.delete_message(
@@ -27,6 +29,16 @@ def register_learn_handlers(dp: Dispatcher, bot: Bot, config):
     async def choose_training_length_command(message: Message,
                                              state: FSMContext):
         await params_training.choose_training_length(message, state, bot)
+
+    @dp.callback_query(lambda c: c.data == 'start_training_from_notification')
+    async def choose_training_length_from_notification(
+            callback_query: CallbackQuery,
+            state: FSMContext
+    ):
+        await bot.delete_message(chat_id=callback_query.from_user.id,
+                                 message_id=callback_query.message.message_id)
+        await params_training.choose_training_length(callback_query.message,
+                                                     state, bot)
 
     @dp.callback_query(lambda c: c.data.startswith('grade_'))
     async def process_grade_choice(callback_query: CallbackQuery,

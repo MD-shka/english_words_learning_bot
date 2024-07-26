@@ -25,18 +25,6 @@ async def add_user(pool, telegram_id: int, username: str):
         )
 
 
-async def update_last_activity(pool, telegram_id: int):
-    async with pool.acquire() as connection:
-        await connection.execute(
-            """
-            UPDATE users
-            SET last_activity = $1
-            WHERE telegram_id = $2
-            """,
-            datetime.utcnow(), telegram_id
-        )
-
-
 async def get_user_id(pool, telegram_id: int):
     async with pool.acquire() as connection:
         user_id = await connection.fetchval(
@@ -228,4 +216,17 @@ async def update_notafication_interval(pool, telegram_id: int, interval: int):
             WHERE telegram_id = $2
             """,
             interval, telegram_id
+        )
+
+
+async def update_last_activity(pool, telegram_id: int):
+    async with pool.acquire() as connection:
+        await connection.execute(
+            """
+            UPDATE users
+            SET last_activity = $1
+            WHERE telegram_id = $2
+            """,
+            datetime.utcnow(),
+            telegram_id
         )
